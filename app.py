@@ -1,37 +1,28 @@
 import numpy as np
-from flask import Flask, request, jsonify, render_template
-import pickle
+from flask import Flask, request, render_template
+import joblib
+
+# Load the trained model
+model = joblib.load('stock_sentiment_model.pkl')
 
 app = Flask(__name__)
-model = pickle.load(open('model.pkl', 'rb'))
 
 @app.route('/')
 def home():
     return render_template('index.html')
 
-@app.route('/predict',methods=['POST'])
+@app.route('/predict', methods=['POST'])
 def predict():
-    '''
-    For rendering results on HTML GUI
-    '''
-    int_features = [int(x) for x in request.form.values()]
-    final_features = [np.array(int_features)]
-    prediction = model.predict(final_features)
+    if request.method == 'POST':
+        news = request.form['news']
+        prediction = model.predict([news])[0]
+        
+        if prediction == 0:
+            result = "The stock price will likely go DOWN or stay the SAME."
+        else:
+            result = "The stock price will likely go UP!"
+        
+        return render_template('index.html', prediction=result, news=news)
 
-    output = round(prediction[0], 2)
-
-    return render_template('index.html', prediction_text='Employee Salary should be $ {}'.format(output))
-
-@app.route('/predict_api',methods=['POST'])
-def predict_api():
-    '''
-    For direct API calls trought request
-    '''
-    data = request.get_json(force=True)
-    prediction = model.predict([np.array(list(data.values()))])
-
-    output = prediction[0]
-    return jsonify(output)
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     app.run(debug=True)
